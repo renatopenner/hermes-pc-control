@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+
+  <Package Name="Hermes PC-Control Plugin"
+           Manufacturer="Renato Penner Soares"
+           Version="1.0.0"
+           UpgradeCode="6F3A9C21-84B7-4D5E-9A0C-1D2E3F4A5B60"
+           Scope="perUser"
+           Compressed="yes">
+
+    <SummaryInformation Description="Controle do Windows em segundo plano para agentes (Hermes Agent / Google Antigravity via MCP): UI Automation, mensagens Win32, teclado e mouse reais, janelas, processos, servicos, energia, captura e clipboard."
+                        Manufacturer="Renato Penner Soares" />
+
+    <MajorUpgrade DowngradeErrorMessage="Uma versao mais nova do Hermes PC-Control ja esta instalada." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="hermesDir" Name="hermes">
+        <Directory Id="pluginsDir" Name="plugins">
+          <Directory Id="INSTALLFOLDER" Name="pc-control">
+            <Directory Id="skillsDir" Name="skills">
+              <Directory Id="skillPcDir" Name="pc-control" />
+            </Directory>
+            <Directory Id="desktopDir" Name="desktop" />
+            <Directory Id="dashboardDir" Name="dashboard" />
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="Hermes PC-Control Plugin" Level="1">
+      <ComponentRef Id="CInit" />
+      <ComponentRef Id="CCore" />
+      <ComponentRef Id="CTools" />
+      <ComponentRef Id="CUia" />
+      <ComponentRef Id="CCom" />
+      <ComponentRef Id="CMcp" />
+      <ComponentRef Id="CYaml" />
+      <ComponentRef Id="CPjson" />
+      <ComponentRef Id="CReadme" />
+      <ComponentRef Id="CLicense" />
+      <ComponentRef Id="CLaunch" />
+      <ComponentRef Id="CAntiPs1" />
+      <ComponentRef Id="CAntiCmd" />
+      <ComponentRef Id="CSkill" />
+      <ComponentRef Id="CDesktop" />
+      <ComponentRef Id="CDashApi" />
+      <ComponentRef Id="CDashMan" />
+      <ComponentRef Id="CStartMenu" />
+    </Feature>
+
+    <Component Id="CInit" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\__init__.py" KeyPath="yes" />
+    </Component>
+    <Component Id="CCore" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\pccore.py" KeyPath="yes" />
+    </Component>
+    <Component Id="CTools" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\pctools.py" KeyPath="yes" />
+    </Component>
+    <Component Id="CUia" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\uia.ps1" KeyPath="yes" />
+    </Component>
+    <Component Id="CCom" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\com.ps1" KeyPath="yes" />
+    </Component>
+    <Component Id="CMcp" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\mcp_server.py" KeyPath="yes" />
+    </Component>
+    <Component Id="CYaml" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\plugin.yaml" KeyPath="yes" />
+    </Component>
+    <Component Id="CPjson" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\plugin.json" KeyPath="yes" />
+    </Component>
+    <Component Id="CReadme" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\README.md" KeyPath="yes" />
+    </Component>
+    <Component Id="CLicense" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\LICENSE" KeyPath="yes" />
+    </Component>
+    <Component Id="CLaunch" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\launch.cmd" KeyPath="yes" />
+    </Component>
+    <Component Id="CAntiPs1" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\setup-antigravity.ps1" KeyPath="yes" />
+    </Component>
+    <Component Id="CAntiCmd" Directory="INSTALLFOLDER" Guid="*">
+      <File Source="stage\setup-antigravity.cmd" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CSkill" Directory="skillPcDir" Guid="*">
+      <File Source="stage\skills\pc-control\SKILL.md" KeyPath="yes" />
+    </Component>
+    <Component Id="CDesktop" Directory="desktopDir" Guid="*">
+      <File Source="stage\desktop\plugin.js" KeyPath="yes" />
+    </Component>
+    <Component Id="CDashApi" Directory="dashboardDir" Guid="*">
+      <File Source="stage\dashboard\plugin_api.py" KeyPath="yes" />
+    </Component>
+    <Component Id="CDashMan" Directory="dashboardDir" Guid="*">
+      <File Source="stage\dashboard\manifest.json" KeyPath="yes" />
+    </Component>
+
+    <Component Id="CStartMenu" Directory="ProgramMenuFolder" Guid="B81D4E70-2C95-4A6F-8E31-5D7C9A0B1E42">
+      <Shortcut Id="ShortcutSetupAntigravity"
+                Name="PC-Control - configurar Antigravity"
+                Description="Grava o servidor MCP do pc-control na configuracao do Google Antigravity"
+                Target="[INSTALLFOLDER]setup-antigravity.cmd"
+                WorkingDirectory="INSTALLFOLDER" />
+      <RemoveFolder Id="RemoveStartMenuDir" On="uninstall" />
+      <RegistryValue Root="HKCU" Key="Software\Hermes\pc-control" Name="installPath"
+                     Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+    </Component>
+
+  </Package>
+</Wix>

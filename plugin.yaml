@@ -1,0 +1,36 @@
+name: pc-control
+version: 1.0.0
+manifest_version: 1
+api_version: 1
+description: >
+  Controle total do computador pelo agente: mouse e teclado em SEGUNDO PLANO
+  (PostMessage/WM_SETTEXT/BM_CLICK, sem mover o cursor nem roubar foco) e em
+  PRIMEIRO PLANO (SendInput real) quando o app exige. Janelas, árvore de
+  controles Win32, captura de tela PrintWindow, clipboard, processos, serviços,
+  energia. Killswitch + auditoria com painel no desktop.
+author: Renato Penner / Hermes
+license: MIT
+requires_hermes: ">=0.21"
+tags: [desktop, automation, windows, computer-use, input, tools]
+provides_tools:
+  - pc_status
+  - pc_control
+  - pc_windows
+  - pc_window
+  - pc_elements
+  - pc_uia
+  - pc_act
+  - pc_com
+  - pc_win32
+  - pc_input
+  - pc_settext
+  - pc_screenshot
+  - pc_clipboard
+  - pc_process
+  - pc_service
+  - pc_power
+  - pc_audit
+provides_commands:
+  - pc
+platforms:
+  - windows

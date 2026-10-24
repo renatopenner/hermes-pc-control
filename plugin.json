@@ -1,0 +1,11 @@
+{
+  "name": "pc-control",
+  "displayName": "PC Control",
+  "version": "1.0.0",
+  "description": "Controle total do Windows pelo agente: mouse e teclado em segundo plano (UI Automation, sem roubar foco), Win32 messages, primeiro plano quando necessário, janelas, processos, serviços, energia, captura de tela e clipboard. Mesmo motor do plugin do Hermes, exposto por MCP.",
+  "suggestedPrompts": [
+    "Preencha o Bloco de Notas com o resumo do dia sem roubar meu foco",
+    "Liste as janelas abertas e feche as do Chrome que sobraram",
+    "Tire um print desta janela mesmo estando atrás de outras"
+  ]
+}

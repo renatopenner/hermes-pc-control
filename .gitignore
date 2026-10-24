@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+dist/
+packaging/stage/
+*.wixobj
+*.wixpdb
+*.msi
+*.msi.zip
+state.json
+audit.jsonl
+.pytest_cache/
