@@ -13,25 +13,46 @@ metadata:
 
 # pc-control — controle do PC (segundo plano → primeiro plano)
 
-Você tem 14 tools para controlar o Windows inteiro. A regra é **background
+Você tem 17 tools para controlar o Windows inteiro. A regra é **background
 primeiro, foreground só quando a resposta mandar**. Toda resposta traz
-`mode`/`method`: leia antes de escalar, nunca repita uma ação confirmada.
+`mode`/`method` (ou, no `pc_act`, `resolved_by`/`foreground_used`/`verified`):
+leia antes de escalar, nunca repita uma ação confirmada.
 
 ## Ladder de decisão
 
-Para **agir em um app** (clicar, digitar, marcar, expandir):
+**Comece por `pc_act`.** Ele percorre a escada sozinho e diz onde parou — é uma
+chamada em vez de quatro tentativas:
+
+```
+uia-pattern -> uia-legacy -> uia-select -> uia-child-self -> win32-message -> foreground
+```
+
+`pc_act action=click|toggle|type|set|key|read|minimize|maximize|restore|close|move|resize`
+com `hwnd` + (`name` | `automation_id` | `type`) + `index`/`contains`.
+
+Leia a resposta: `resolved_by` diz a camada que funcionou, `foreground_used=false`
+significa que nada apareceu na tela nem mexeu no cursor, e `verified` diz se o
+estado mudou de fato. `verified=false` com `ok=true` = o app aceitou e ignorou;
+confirme com `pc_screenshot target=window` antes de declarar sucesso.
+
+Só desça manualmente quando precisar de controle fino:
 
 1. `pc_uia action=dump hwnd=<janela>` — vê a árvore acessível (name, automation_id,
    type, rect, patterns). Prefira elementos com pattern `invoke`/`value`/`toggle`.
 2. `pc_uia action=invoke|set_value|toggle|select|expand` com `name` ou `automation_id`.
    Isso é background de verdade: não move o cursor nem rouba foco.
-3. `pc_uia action=click` quando não souber se há pattern — ele tenta Invoke →
-   `BM_CLICK` Win32 → clique em primeiro plano, e diz qual usou (`method`).
-4. Se a árvore não existir/estiver vazia (app sem acessibilidade, canvas, jogo):
-   `pc_input mode=foreground` (input real, move o cursor — aceitável só quando
-   o usuário não está no meio de algo).
+3. `pc_win32 action=command control_id=<id>` quando o app é Win32 clássico e você
+   já sabe o id do controle (`pc_elements` mostra) — é o caminho mais curto para
+   diálogos `#32770`.
+4. Árvore vazia (app sem acessibilidade, canvas, jogo): `pc_input mode=foreground`
+   (input real, move o cursor — aceitável só quando o usuário não está no meio de algo).
 5. `computer_use` (cua-driver) quando você quiser captura com índice de elemento
    ou já estiver usando aquele vocabulário.
+
+Para **app com interface de automação** (Office, `Shell.Application`, WMI): `pc_com`
+— `attach`/`create` pelo ProgID, `members` para descobrir, `invoke`/`get_value`/
+`set_value`/`default`. É o único caminho que mexe no modelo do documento em vez de
+na tela.
 
 Para **ler o conteúdo** de um campo de outro processo: `pc_uia action=get_value`
 (ValuePattern/TextPattern). `GetWindowText` não atravessa processos.
@@ -68,6 +89,11 @@ pc_window hwnd=<hwnd> action=maximize
   guarde os `name`/`automation_id` e reuse; não faça dump dentro de loop.
 - **`name` é exato por padrão**. Se falhar, a resposta traz `suggestions` — use-as
   ou passe `contains=true`.
+- **Botão clássico sem Invoke cai em `win32-bm-click`, que costuma vir com
+  `verified=false`** (BM_CLICK não muda nada que `_probe` enxergue). Não é falha:
+  confirme o efeito real (campo preenchido, janela fechada) em vez do booleano.
+- **`pc_win32` com `control_id` errado é silencioso**: WM_COMMAND de id inexistente
+  retorna sucesso e não faz nada. Confirme pela janela/estado, não pelo retorno.
 - **`pc_elements` é Win32 puro** (rápido, sem PowerShell) mas não enxerga apps
   XAML/modernos nem conteúdo de navegador.
 - **`WM_CHAR`/`WM_SETTEXT` cross-process**: na maioria dos apps modernos não
