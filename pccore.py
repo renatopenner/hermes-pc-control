@@ -67,6 +67,16 @@ user32.SendMessageTimeoutW.restype = wt.LPARAM
 user32.SetForegroundWindow.argtypes = [wt.HWND]
 user32.BringWindowToTop.argtypes = [wt.HWND]
 user32.SetFocus.argtypes = [wt.HWND]
+user32.SetActiveWindow.argtypes = [wt.HWND]
+user32.SetActiveWindow.restype = wt.HWND
+user32.AllowSetForegroundWindow.argtypes = [wt.DWORD]
+user32.AllowSetForegroundWindow.restype = wt.BOOL
+user32.LockSetForegroundWindow.argtypes = [wt.UINT]
+user32.LockSetForegroundWindow.restype = wt.BOOL
+user32.SystemParametersInfoW.argtypes = [wt.UINT, wt.UINT, ctypes.c_void_p, wt.UINT]
+user32.SystemParametersInfoW.restype = wt.BOOL
+user32.keybd_event.argtypes = [wt.BYTE, wt.BYTE, wt.DWORD, ctypes.c_void_p]
+user32.keybd_event.restype = None
 user32.ShowWindow.argtypes = [wt.HWND, ctypes.c_int]
 user32.MoveWindow.argtypes = [wt.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wt.BOOL]
 user32.SetWindowPos.argtypes = [wt.HWND, wt.HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wt.UINT]
@@ -124,7 +134,20 @@ def _set_dpi_aware() -> None:
             pass
 
 
+def ensure_foreground_lock_disabled() -> bool:
+    """Ensure Windows focus-stealing prevention does not force newly opened windows to background."""
+    try:
+        user32.SystemParametersInfoW(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, ctypes.c_void_p(0), SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Control Panel\Desktop", 0, winreg.KEY_SET_VALUE) as key:
+            winreg.SetValueEx(key, "ForegroundLockTimeout", 0, winreg.REG_DWORD, 0)
+        return True
+    except Exception:
+        return False
+
+
 _set_dpi_aware()
+ensure_foreground_lock_disabled()
 
 # --------------------------------------------------------------------------- #
 # Constants
@@ -158,6 +181,14 @@ MOUSEEVENTF_RIGHTDOWN, MOUSEEVENTF_RIGHTUP = 0x0008, 0x0010
 MOUSEEVENTF_MIDDLEDOWN, MOUSEEVENTF_MIDDLEUP = 0x0020, 0x0040
 MOUSEEVENTF_WHEEL, MOUSEEVENTF_HWHEEL = 0x0800, 0x1000
 KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, KEYEVENTF_EXTENDEDKEY = 0x0002, 0x0004, 0x0001
+
+SPI_SETFOREGROUNDLOCKTIMEOUT = 0x2001
+SPI_GETFOREGROUNDLOCKTIMEOUT = 0x2000
+SPIF_UPDATEINIFILE = 0x01
+SPIF_SENDCHANGE = 0x02
+ASFW_ANY = 0xFFFFFFFF
+LSFW_UNLOCK = 2
+VK_MENU = 0x12
 
 SW_RESTORE, SW_MINIMIZE, SW_MAXIMIZE, SW_SHOW = 9, 6, 3, 5
 HWND_TOP, HWND_TOPMOST, HWND_NOTOPMOST = 0, -1, -2
@@ -538,8 +569,10 @@ def window_action(hwnd: int, action: str, x: int | None = None, y: int | None = 
         user32.ShowWindow(h, SW_MINIMIZE)
     elif a in ("maximize", "max"):
         user32.ShowWindow(h, SW_MAXIMIZE)
+        _force_foreground(h)
     elif a in ("restore", "show"):
         user32.ShowWindow(h, SW_RESTORE)
+        _force_foreground(h)
     elif a in ("close",):
         user32.PostMessageW(h, WM_CLOSE, 0, 0)
     elif a in ("topmost",):
@@ -562,21 +595,46 @@ def window_action(hwnd: int, action: str, x: int | None = None, y: int | None = 
 
 def _force_foreground(hwnd: int) -> None:
     """Bring a window to the front, defeating the foreground-lock heuristic."""
+    if not hwnd or not user32.IsWindow(hwnd):
+        return
     if user32.IsIconic(hwnd):
         user32.ShowWindow(hwnd, SW_RESTORE)
     fg = int(user32.GetForegroundWindow() or 0)
     if fg == hwnd:
         return
+
+    try:
+        user32.SystemParametersInfoW(SPI_SETFOREGROUNDLOCKTIMEOUT, 0, ctypes.c_void_p(0), SPIF_SENDCHANGE)
+    except Exception:
+        pass
+    try:
+        user32.AllowSetForegroundWindow(ASFW_ANY)
+    except Exception:
+        pass
+    try:
+        user32.LockSetForegroundWindow(LSFW_UNLOCK)
+    except Exception:
+        pass
+
     cur_tid = kernel32.GetCurrentThreadId()
-    fg_tid = user32.GetWindowThreadProcessId(fg, None)
+    fg_tid = user32.GetWindowThreadProcessId(fg, None) if fg else 0
     tgt_tid = user32.GetWindowThreadProcessId(hwnd, None)
     attached = []
     try:
         for tid in {fg_tid, tgt_tid}:
             if tid and tid != cur_tid and user32.AttachThreadInput(cur_tid, tid, True):
                 attached.append(tid)
+
+        try:
+            user32.keybd_event(VK_MENU, 0, 0, None)
+            user32.keybd_event(VK_MENU, 0, KEYEVENTF_KEYUP, None)
+        except Exception:
+            pass
+
+        user32.SetWindowPos(hwnd, wt.HWND(HWND_TOP), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW)
         user32.BringWindowToTop(hwnd)
         user32.SetForegroundWindow(hwnd)
+        user32.SetActiveWindow(hwnd)
         user32.SetFocus(hwnd)
     finally:
         for tid in attached:
